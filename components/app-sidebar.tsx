@@ -39,7 +39,7 @@ type NavItem = {
 const NAV_ITEMS_BY_ROLE: Record<UserRole, NavItem[]> = {
   admin: [
     { title: 'Dashboard', url: ROLE_HOME_PATH.admin, icon: <LayoutDashboardIcon /> },
-    { title: 'Manage Student', url: '#', icon: <GraduationCapIcon /> },
+    { title: 'Manage Student', url: '/dashboard/admin/students', icon: <GraduationCapIcon /> },
     { title: 'Manage Teacher', url: '#', icon: <UserCogIcon /> },
     { title: 'Manage Class', url: '#', icon: <BookOpenIcon /> },
     { title: 'Manage Schedule', url: '#', icon: <CalendarCogIcon /> },
