@@ -16,7 +16,7 @@ type AuthContextValue = {
   user: SessionUser | null;
   /** true selama sesi awal masih dibaca dari cookie (hindari flicker) */
   isLoading: boolean;
-  login: (username: string, password: string) => LoginResult;
+  login: (email: string, password: string) => LoginResult;
   logout: () => void;
 };
 
@@ -62,18 +62,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = React.useCallback((username: string, password: string): LoginResult => {
-    const account = findDummyUser(username, password);
+  const login = React.useCallback((email: string, password: string): LoginResult => {
+    const account = findDummyUser(email, password);
 
     if (!account) {
-      return { success: false, message: 'Username atau password salah.' };
+      return { success: false, message: 'Email atau password salah.' };
     }
 
     const sessionUser: SessionUser = {
-      username: account.username,
+      email: account.email,
       role: account.role,
       name: account.name,
-      email: account.email,
       meta: account.meta,
     };
     writeSessionCookie(sessionUser);

@@ -39,7 +39,7 @@ type NavItem = {
 const NAV_ITEMS_BY_ROLE: Record<UserRole, NavItem[]> = {
   admin: [
     { title: 'Dashboard', url: ROLE_HOME_PATH.admin, icon: <LayoutDashboardIcon /> },
-    { title: 'Data Fakultas', url: '#', icon: <UserCogIcon /> },
+    { title: 'Data Fakultas', url: '/dashboard/admin/facultys', icon: <UserCogIcon /> },
     { title: 'Data Program Studi', url: '#', icon: <BookOpenIcon /> },
     { title: 'Data Tahun Akademik', url: '#', icon: <CalendarCogIcon /> },
     { title: 'Data Mahasiswa', url: '/dashboard/admin/students', icon: <GraduationCapIcon /> },
