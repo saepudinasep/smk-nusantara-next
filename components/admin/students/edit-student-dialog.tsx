@@ -15,13 +15,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  CLASS_OPTIONS,
-  type Student,
-  type StudentGender,
-  type StudentStatus,
-} from '@/lib/dummy-data/students';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { CLASS_OPTIONS, type Student, type StudentStatus } from '@/lib/dummy-data/students';
 
 type EditableFields = Omit<Student, 'id'>;
 
@@ -40,12 +41,12 @@ export function EditStudentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Data Siswa</DialogTitle>
-          <DialogDescription>Perbarui data siswa di bawah ini.</DialogDescription>
+          <DialogTitle>Edit Data Mahasiswa</DialogTitle>
+          <DialogDescription>Perbarui data mahasiswa di bawah ini.</DialogDescription>
         </DialogHeader>
 
         {/* key={student.id}: form remount otomatis dengan data terbaru setiap
-            kali siswa yang diedit berganti, tanpa perlu useEffect. */}
+            kali mahasiswa yang diedit berganti, tanpa perlu useEffect. */}
         {student && (
           <EditStudentForm
             key={student.id}
@@ -70,33 +71,31 @@ function EditStudentForm({
 }) {
   const formId = useId();
   const [form, setForm] = useState<EditableFields>({
-    nis: student.nis,
+    nim: student.nim,
+    prodiName: student.prodiName,
     name: student.name,
-    className: student.className,
-    gender: student.gender,
-    phone: student.phone,
     status: student.status,
+    angkatan: student.angkatan,
   });
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!form.nis.trim() || !form.name.trim() || !form.className || !form.phone.trim()) {
+    if (!form.nim.trim() || !form.name.trim() || !form.prodiName || !form.angkatan.trim()) {
       setError('Semua kolom wajib diisi.');
       return;
     }
 
     onSave(student.id, {
-      nis: form.nis.trim(),
+      nim: form.nim.trim(),
+      prodiName: form.prodiName,
       name: form.name.trim(),
-      className: form.className,
-      gender: form.gender,
-      phone: form.phone.trim(),
       status: form.status,
+      angkatan: form.angkatan.trim(),
     });
 
-    toast.success('Data siswa diperbarui', { description: `${form.name} · ${form.className}` });
+    toast.success('Data mahasiswa diperbarui', { description: `${form.name} · ${form.prodiName}` });
     onDone();
   }
 
@@ -106,23 +105,23 @@ function EditStudentForm({
         <FieldGroup>
           <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
             <Field data-invalid={!!error}>
-              <FieldLabel htmlFor='edit-nis'>NIS</FieldLabel>
+              <FieldLabel htmlFor='edit-nim'>NIM</FieldLabel>
               <Input
-                id='edit-nis'
+                id='edit-nim'
                 placeholder='2324010199'
-                value={form.nis}
-                onChange={(event) => setForm((prev) => ({ ...prev, nis: event.target.value }))}
+                value={form.nim}
+                onChange={(event) => setForm((prev) => ({ ...prev, nim: event.target.value }))}
                 aria-invalid={!!error}
                 required
               />
             </Field>
             <Field data-invalid={!!error}>
-              <FieldLabel htmlFor='edit-phone'>No. HP</FieldLabel>
+              <FieldLabel htmlFor='edit-angkatan'>Angkatan</FieldLabel>
               <Input
-                id='edit-phone'
-                placeholder='0812xxxxxxx'
-                value={form.phone}
-                onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+                id='edit-angkatan'
+                placeholder='2026'
+                value={form.angkatan}
+                onChange={(event) => setForm((prev) => ({ ...prev, angkatan: event.target.value }))}
                 aria-invalid={!!error}
                 required
               />
@@ -133,7 +132,7 @@ function EditStudentForm({
             <FieldLabel htmlFor='edit-name'>Nama Lengkap</FieldLabel>
             <Input
               id='edit-name'
-              placeholder='Nama siswa'
+              placeholder='Nama mahasiswa'
               value={form.name}
               onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
               aria-invalid={!!error}
@@ -143,12 +142,14 @@ function EditStudentForm({
 
           <div className='grid grid-cols-1 gap-4 sm:grid-cols-3'>
             <Field className='sm:col-span-2' data-invalid={!!error}>
-              <FieldLabel htmlFor='edit-className'>Kelas</FieldLabel>
+              <FieldLabel htmlFor='edit-prodiName'>Program Studi</FieldLabel>
               <Select
-                value={form.className || undefined}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, className: value as string }))}
+                value={form.prodiName || undefined}
+                onValueChange={(value) =>
+                  setForm((prev) => ({ ...prev, prodiName: value as string }))
+                }
               >
-                <SelectTrigger id='edit-className' className='w-full'>
+                <SelectTrigger id='edit-prodiName' className='w-full'>
                   <SelectValue placeholder='Pilih kelas' />
                 </SelectTrigger>
                 <SelectContent>
@@ -160,29 +161,15 @@ function EditStudentForm({
                 </SelectContent>
               </Select>
             </Field>
-
-            <Field>
-              <FieldLabel htmlFor='edit-gender'>Jenis Kelamin</FieldLabel>
-              <Select
-                value={form.gender}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, gender: value as StudentGender }))}
-              >
-                <SelectTrigger id='edit-gender' className='w-full'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='L'>Laki-laki</SelectItem>
-                  <SelectItem value='P'>Perempuan</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
           </div>
 
           <Field>
             <FieldLabel htmlFor='edit-status'>Status</FieldLabel>
             <Select
               value={form.status}
-              onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as StudentStatus }))}
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, status: value as StudentStatus }))
+              }
             >
               <SelectTrigger id='edit-status' className='w-full sm:w-48'>
                 <SelectValue />

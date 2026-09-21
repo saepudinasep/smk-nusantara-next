@@ -16,19 +16,24 @@ import {
 import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CLASS_OPTIONS, type Student, type StudentGender, type StudentStatus } from '@/lib/dummy-data/students';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { CLASS_OPTIONS, type Student, type StudentStatus } from '@/lib/dummy-data/students';
 import { PlusIcon } from 'lucide-react';
 
 export type NewStudentInput = Omit<Student, 'id'>;
 
 const EMPTY_FORM = {
-  nis: '',
+  nim: '',
+  prodiName: '',
   name: '',
-  className: '',
-  gender: 'L' as StudentGender,
-  phone: '',
   status: 'Aktif' as StudentStatus,
+  angkatan: '',
 };
 
 export function AddStudentDialog({ onAdd }: { onAdd: (student: NewStudentInput) => void }) {
@@ -52,21 +57,22 @@ export function AddStudentDialog({ onAdd }: { onAdd: (student: NewStudentInput) 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!form.nis.trim() || !form.name.trim() || !form.className || !form.phone.trim()) {
+    if (!form.nim.trim() || !form.name.trim() || !form.prodiName || !form.angkatan.trim()) {
       setError('Semua kolom wajib diisi.');
       return;
     }
 
     onAdd({
-      nis: form.nis.trim(),
+      nim: form.nim.trim(),
+      prodiName: form.prodiName,
       name: form.name.trim(),
-      className: form.className,
-      gender: form.gender,
-      phone: form.phone.trim(),
       status: form.status,
+      angkatan: form.angkatan.trim(),
     });
 
-    toast.success('Siswa berhasil ditambahkan', { description: `${form.name} · ${form.className}` });
+    toast.success('Mahasiswa berhasil ditambahkan', {
+      description: `${form.name} · ${form.prodiName}`,
+    });
     handleOpenChange(false);
   }
 
@@ -74,13 +80,13 @@ export function AddStudentDialog({ onAdd }: { onAdd: (student: NewStudentInput) 
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button size='sm' />}>
         <PlusIcon />
-        Tambah Siswa
+        Tambah Mahasiswa
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tambah Siswa Baru</DialogTitle>
+          <DialogTitle>Tambah Mahasiswa Baru</DialogTitle>
           <DialogDescription>
-            Lengkapi data siswa di bawah ini. Data ini hanya tersimpan sementara di sesi ini.
+            Lengkapi data Mahasiswa di bawah ini. Data ini hanya tersimpan sementara di sesi ini.
           </DialogDescription>
         </DialogHeader>
 
@@ -88,23 +94,25 @@ export function AddStudentDialog({ onAdd }: { onAdd: (student: NewStudentInput) 
           <FieldGroup>
             <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               <Field data-invalid={!!error}>
-                <FieldLabel htmlFor='nis'>NIS</FieldLabel>
+                <FieldLabel htmlFor='nim'>NIM</FieldLabel>
                 <Input
-                  id='nis'
+                  id='nim'
                   placeholder='2324010199'
-                  value={form.nis}
-                  onChange={(event) => setForm((prev) => ({ ...prev, nis: event.target.value }))}
+                  value={form.nim}
+                  onChange={(event) => setForm((prev) => ({ ...prev, nim: event.target.value }))}
                   aria-invalid={!!error}
                   required
                 />
               </Field>
               <Field data-invalid={!!error}>
-                <FieldLabel htmlFor='phone'>No. HP</FieldLabel>
+                <FieldLabel htmlFor='angkatan'>Angkatan</FieldLabel>
                 <Input
-                  id='phone'
-                  placeholder='0812xxxxxxx'
-                  value={form.phone}
-                  onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+                  id='angkatan'
+                  placeholder='2026'
+                  value={form.angkatan}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, angkatan: event.target.value }))
+                  }
                   aria-invalid={!!error}
                   required
                 />
@@ -115,7 +123,7 @@ export function AddStudentDialog({ onAdd }: { onAdd: (student: NewStudentInput) 
               <FieldLabel htmlFor='name'>Nama Lengkap</FieldLabel>
               <Input
                 id='name'
-                placeholder='Nama siswa'
+                placeholder='Nama Mahasiswa'
                 value={form.name}
                 onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
                 aria-invalid={!!error}
@@ -125,12 +133,14 @@ export function AddStudentDialog({ onAdd }: { onAdd: (student: NewStudentInput) 
 
             <div className='grid grid-cols-1 gap-4 sm:grid-cols-3'>
               <Field className='sm:col-span-2' data-invalid={!!error}>
-                <FieldLabel htmlFor='className'>Kelas</FieldLabel>
+                <FieldLabel htmlFor='prodiName'>Program Studi</FieldLabel>
                 <Select
-                  value={form.className || undefined}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, className: value as string }))}
+                  value={form.prodiName || undefined}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({ ...prev, prodiName: value as string }))
+                  }
                 >
-                  <SelectTrigger id='className' className='w-full'>
+                  <SelectTrigger id='prodiName' className='w-full'>
                     <SelectValue placeholder='Pilih kelas' />
                   </SelectTrigger>
                   <SelectContent>
@@ -139,22 +149,6 @@ export function AddStudentDialog({ onAdd }: { onAdd: (student: NewStudentInput) 
                         {option}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor='gender'>Jenis Kelamin</FieldLabel>
-                <Select
-                  value={form.gender}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, gender: value as StudentGender }))}
-                >
-                  <SelectTrigger id='gender' className='w-full'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='L'>Laki-laki</SelectItem>
-                    <SelectItem value='P'>Perempuan</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>

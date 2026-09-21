@@ -17,7 +17,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
   const router = useRouter();
   const { login } = useAuth();
 
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,8 +26,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     event.preventDefault();
     setError(null);
 
-    if (!username.trim() || !password) {
-      setError('Username dan password wajib diisi.');
+    if (!email.trim() || !password) {
+      setError('Email dan password wajib diisi.');
       return;
     }
 
@@ -35,7 +35,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
     // Simulasi jeda proses login supaya terasa nyata
     setTimeout(() => {
-      const result = login(username, password);
+      const result = login(email, password);
 
       if (!result.success) {
         setIsSubmitting(false);
@@ -65,14 +65,14 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                 </p>
               </div>
               <Field data-invalid={!!error}>
-                <FieldLabel htmlFor='username'>Username</FieldLabel>
+                <FieldLabel htmlFor='email'>Email</FieldLabel>
                 <Input
-                  id='username'
-                  type='text'
-                  placeholder='smknusantara'
-                  autoComplete='username'
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
+                  id='email'
+                  type='email'
+                  placeholder='smknusantara@gmail.com'
+                  autoComplete='email'
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   aria-invalid={!!error}
                   required
                 />
@@ -80,6 +80,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               <Field data-invalid={!!error}>
                 <div className='flex items-center'>
                   <FieldLabel htmlFor='password'>Password</FieldLabel>
+                  <a href='#' className='ml-auto text-sm underline-offset-2 hover:underline'>
+                    Forgot your password?
+                  </a>
                 </div>
                 <Input
                   id='password'

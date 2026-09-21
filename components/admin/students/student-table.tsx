@@ -76,8 +76,8 @@ export function StudentTable() {
     return students.filter(
       (student) =>
         student.name.toLowerCase().includes(query) ||
-        student.nis.toLowerCase().includes(query) ||
-        student.className.toLowerCase().includes(query),
+        student.nim.toLowerCase().includes(query) ||
+        student.prodiName.toLowerCase().includes(query),
     );
   }, [students, search]);
 
@@ -102,8 +102,8 @@ export function StudentTable() {
   function confirmDeleteStudent() {
     if (!studentToDelete) return;
     setStudents((prev) => prev.filter((s) => s.id !== studentToDelete.id));
-    toast.success('Siswa dihapus', {
-      description: `${studentToDelete.name} · ${studentToDelete.nis}`,
+    toast.success('Mahasiswa dihapus', {
+      description: `${studentToDelete.name} · ${studentToDelete.nim}`,
     });
     setStudentToDelete(null);
   }
@@ -116,8 +116,8 @@ export function StudentTable() {
     <Card>
       <CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
         <div>
-          <CardTitle>Manage Student</CardTitle>
-          <CardDescription>Kelola data siswa terdaftar di SMK Nusantara</CardDescription>
+          <CardTitle>Data Mahasiswa</CardTitle>
+          <CardDescription>Kelola data mahasiswa terdaftar di SMK Nusantara</CardDescription>
         </div>
         <div className='flex items-center gap-2'>
           <div className='relative'>
@@ -137,12 +137,11 @@ export function StudentTable() {
           <TableHeader>
             <TableRow>
               <TableHead className='w-10'>No</TableHead>
-              <TableHead>NIS</TableHead>
+              <TableHead>NIM</TableHead>
+              <TableHead>Program Studi</TableHead>
               <TableHead>Nama</TableHead>
-              <TableHead>Kelas</TableHead>
-              <TableHead>L/P</TableHead>
-              <TableHead>No. HP</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Angkatan</TableHead>
               <TableHead className='text-right'>Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -150,23 +149,22 @@ export function StudentTable() {
             {paginated.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className='py-8 text-center text-muted-foreground'>
-                  Tidak ada siswa yang cocok dengan pencarian.
+                  Tidak ada mahasiswa yang cocok dengan pencarian.
                 </TableCell>
               </TableRow>
             ) : (
               paginated.map((student, index) => (
                 <TableRow key={student.id}>
                   <TableCell className='text-muted-foreground'>{startIndex + index + 1}</TableCell>
-                  <TableCell className='font-medium'>{student.nis}</TableCell>
+                  <TableCell className='font-medium'>{student.nim}</TableCell>
+                  <TableCell>{student.prodiName}</TableCell>
                   <TableCell>{student.name}</TableCell>
-                  <TableCell>{student.className}</TableCell>
-                  <TableCell className='text-muted-foreground'>{student.gender}</TableCell>
-                  <TableCell className='text-muted-foreground'>{student.phone}</TableCell>
                   <TableCell>
                     <Badge variant={student.status === 'Aktif' ? 'default' : 'outline'}>
                       {student.status}
                     </Badge>
                   </TableCell>
+                  <TableCell className='text-muted-foreground'>{student.angkatan}</TableCell>
                   <TableCell className='text-right'>
                     <div className='flex justify-end gap-1'>
                       <Button
@@ -197,8 +195,8 @@ export function StudentTable() {
         <div className='mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row'>
           <p className='text-sm text-muted-foreground'>
             {filtered.length === 0
-              ? '0 siswa'
-              : `Menampilkan ${startIndex + 1}-${Math.min(startIndex + PAGE_SIZE, filtered.length)} dari ${filtered.length} siswa`}
+              ? '0 mahasiswa'
+              : `Menampilkan ${startIndex + 1}-${Math.min(startIndex + PAGE_SIZE, filtered.length)} dari ${filtered.length} mahasiswa`}
           </p>
 
           {totalPages > 1 && (
@@ -261,12 +259,12 @@ export function StudentTable() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus data siswa?</AlertDialogTitle>
+            <AlertDialogTitle>Hapus data mahasiswa?</AlertDialogTitle>
             <AlertDialogDescription>
               {studentToDelete && (
                 <>
                   Data <span className='font-medium text-foreground'>{studentToDelete.name}</span>{' '}
-                  (NIS {studentToDelete.nis}, {studentToDelete.className}) akan dihapus permanen.
+                  (NIS {studentToDelete.nim}, {studentToDelete.prodiName}) akan dihapus permanen.
                   Tindakan ini tidak dapat dibatalkan.
                 </>
               )}

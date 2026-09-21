@@ -39,12 +39,12 @@ type NavItem = {
 const NAV_ITEMS_BY_ROLE: Record<UserRole, NavItem[]> = {
   admin: [
     { title: 'Dashboard', url: ROLE_HOME_PATH.admin, icon: <LayoutDashboardIcon /> },
-    { title: 'Manage Student', url: '/dashboard/admin/students', icon: <GraduationCapIcon /> },
-    { title: 'Manage Teacher', url: '#', icon: <UserCogIcon /> },
-    { title: 'Manage Class', url: '#', icon: <BookOpenIcon /> },
-    { title: 'Manage Schedule', url: '#', icon: <CalendarCogIcon /> },
-    { title: 'Finalize Schedule', url: '#', icon: <CalendarCheckIcon /> },
-    { title: 'View Report', url: '#', icon: <FileChartColumnIcon /> },
+    { title: 'Data Fakultas', url: '#', icon: <UserCogIcon /> },
+    { title: 'Data Program Studi', url: '#', icon: <BookOpenIcon /> },
+    { title: 'Data Tahun Akademik', url: '#', icon: <CalendarCogIcon /> },
+    { title: 'Data Mahasiswa', url: '/dashboard/admin/students', icon: <GraduationCapIcon /> },
+    { title: 'Data Dosen', url: '#', icon: <CalendarCheckIcon /> },
+    { title: 'Data User', url: '#', icon: <FileChartColumnIcon /> },
   ],
   teacher: [
     { title: 'Dashboard', url: ROLE_HOME_PATH.teacher, icon: <LayoutDashboardIcon /> },

@@ -36,7 +36,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(home, request.url));
     }
 
-    // Cegah lintas-role, misal siswa membuka /dashboard/admin
+    // Cegah lintas-role, misal mahasiswa membuka /dashboard/admin
     const isAdminRoute = pathname.startsWith('/dashboard/admin');
     const isTeacherRoute = pathname.startsWith('/dashboard/teacher');
     const isStudentRoute = pathname.startsWith('/dashboard/student');

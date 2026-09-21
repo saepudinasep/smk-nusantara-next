@@ -1,7 +1,14 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { myClasses } from '@/lib/dummy-data/teacher';
 import { cn } from 'cn';
 
@@ -18,7 +25,7 @@ export function MyClassesTable() {
             <TableRow>
               <TableHead>Kelas</TableHead>
               <TableHead>Mata Pelajaran</TableHead>
-              <TableHead>Siswa</TableHead>
+              <TableHead>Mahasiswa</TableHead>
               <TableHead className='text-right'>Progres Nilai</TableHead>
             </TableRow>
           </TableHeader>

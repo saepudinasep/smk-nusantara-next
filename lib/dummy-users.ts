@@ -1,11 +1,10 @@
 export type UserRole = 'admin' | 'teacher' | 'student';
 
 export interface DummyUser {
-  username: string;
+  email: string;
   password: string;
   role: UserRole;
   name: string;
-  email: string;
   /** Info tambahan yang relevan sesuai role, ditampilkan di dashboard */
   meta?: string;
 }
@@ -16,35 +15,32 @@ export interface DummyUser {
  */
 export const DUMMY_USERS: DummyUser[] = [
   {
-    username: 'admin',
+    email: 'admin@smknusantara.sch.id',
     password: 'admin123',
     role: 'admin',
     name: 'Siti Rahayu',
-    email: 'admin@smknusantara.sch.id',
     meta: 'Tata Usaha & Kurikulum',
   },
   {
-    username: 'guru',
+    email: 'budi.santoso@smknusantara.sch.id',
     password: 'guru123',
     role: 'teacher',
     name: 'Budi Santoso, S.Pd',
-    email: 'budi.santoso@smknusantara.sch.id',
     meta: 'Guru Rekayasa Perangkat Lunak',
   },
   {
-    username: 'siswa',
-    password: 'siswa123',
+    email: 'ahmad.fauzan@siswa.smknusantara.sch.id',
+    password: 'mahasiswa123',
     role: 'student',
     name: 'Ahmad Fauzan',
-    email: 'ahmad.fauzan@siswa.smknusantara.sch.id',
-    meta: 'Kelas XII RPL 1 · NIS 2324010123',
+    meta: 'Program Studi Teknik Informatika · NIM 2324010123',
   },
 ];
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   admin: 'Admin',
   teacher: 'Guru',
-  student: 'Siswa',
+  student: 'Mahasiswa',
 };
 
 export const ROLE_HOME_PATH: Record<UserRole, string> = {
@@ -53,10 +49,10 @@ export const ROLE_HOME_PATH: Record<UserRole, string> = {
   student: '/dashboard/student',
 };
 
-export function findDummyUser(username: string, password: string): DummyUser | undefined {
+export function findDummyUser(email: string, password: string): DummyUser | undefined {
   return DUMMY_USERS.find(
     (candidate) =>
-      candidate.username.toLowerCase() === username.trim().toLowerCase() &&
+      candidate.email.toLowerCase() === email.trim().toLowerCase() &&
       candidate.password === password,
   );
 }

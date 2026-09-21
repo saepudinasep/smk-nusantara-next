@@ -37,7 +37,7 @@ export const recentActivity = [
   },
   {
     id: 3,
-    activity: 'Memperbarui data siswa pindahan',
+    activity: 'Memperbarui data mahasiswa pindahan',
     user: 'Siti Rahayu',
     role: 'Admin',
     time: '1 jam lalu',
@@ -61,7 +61,7 @@ export const recentActivity = [
   },
   {
     id: 6,
-    activity: 'Menonaktifkan akun siswa lulus',
+    activity: 'Menonaktifkan akun mahasiswa lulus',
     user: 'Siti Rahayu',
     role: 'Admin',
     time: 'Kemarin',

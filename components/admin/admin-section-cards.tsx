@@ -1,16 +1,29 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { adminStats } from '@/lib/dummy-data/admin';
-import { GraduationCapIcon, UsersIcon, BookOpenIcon, ClockAlertIcon, TrendingUpIcon } from 'lucide-react';
+import {
+  GraduationCapIcon,
+  UsersIcon,
+  BookOpenIcon,
+  ClockAlertIcon,
+  TrendingUpIcon,
+} from 'lucide-react';
 
 export function AdminSectionCards() {
   return (
     <div className='grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 dark:*:data-[slot=card]:bg-card'>
       <Card className='@container/card'>
         <CardHeader>
-          <CardDescription>Total Siswa</CardDescription>
+          <CardDescription>Jumlah Mahasiswa</CardDescription>
           <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
             {adminStats.totalStudents}
           </CardTitle>
@@ -30,7 +43,7 @@ export function AdminSectionCards() {
       </Card>
       <Card className='@container/card'>
         <CardHeader>
-          <CardDescription>Total Guru</CardDescription>
+          <CardDescription>Jumlah Dosen</CardDescription>
           <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
             {adminStats.totalTeachers}
           </CardTitle>
@@ -50,7 +63,7 @@ export function AdminSectionCards() {
       </Card>
       <Card className='@container/card'>
         <CardHeader>
-          <CardDescription>Total Kelas</CardDescription>
+          <CardDescription>Jumlah Prodi</CardDescription>
           <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
             {adminStats.totalClasses}
           </CardTitle>
@@ -67,7 +80,7 @@ export function AdminSectionCards() {
       </Card>
       <Card className='@container/card'>
         <CardHeader>
-          <CardDescription>Jadwal Menunggu Finalisasi</CardDescription>
+          <CardDescription>Jumlah Fakultas</CardDescription>
           <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
             {adminStats.pendingSchedules}
           </CardTitle>

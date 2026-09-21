@@ -13,7 +13,7 @@ import { enrollmentTrend } from '@/lib/dummy-data/admin';
 
 const chartConfig = {
   students: {
-    label: 'Siswa',
+    label: 'Mahasiswa',
     color: 'var(--primary)',
   },
 } satisfies ChartConfig;
@@ -22,7 +22,7 @@ export function EnrollmentChart() {
   return (
     <Card className='@container/card'>
       <CardHeader>
-        <CardTitle>Tren Jumlah Siswa</CardTitle>
+        <CardTitle>Tren Jumlah Mahasiswa</CardTitle>
         <CardDescription>6 bulan terakhir</CardDescription>
       </CardHeader>
       <CardContent className='px-2 pt-4 sm:px-6 sm:pt-6'>
