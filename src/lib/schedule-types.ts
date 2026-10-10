@@ -37,3 +37,42 @@ export type ManageClassData = {
   /** studentId -> className (siswa tanpa kelas tidak ada di sini) */
   assignments: Record<string, string>;
 };
+
+// ----- Jadwal milik pengguna yang login (guru / siswa) -----
+export type TeacherSession = {
+  id: string;
+  subjectId: string;
+  subject: string;
+  className: string;
+  day: Day;
+  shiftId: number;
+  time: string;
+  /** false = jadwal kelas itu masih draft (bisa berubah) */
+  finalized: boolean;
+};
+
+export type TeacherScheduleData = {
+  teacher: { teacherId: string; name: string };
+  sessions: TeacherSession[];
+  /** className -> daftar siswa kelas itu (hanya kelas yang diajar guru ini; tanpa data pribadi lain) */
+  studentsByClass: Record<string, ClassStudent[]>;
+};
+
+export type StudentSession = {
+  id: string;
+  subjectId: string;
+  subject: string;
+  teacher: string;
+  day: Day;
+  shiftId: number;
+  time: string;
+};
+
+export type ClassScheduleData = {
+  student: { studentId: string; name: string };
+  /** null = siswa belum ditempatkan di kelas mana pun */
+  className: string | null;
+  grade: number | null;
+  finalized: boolean;
+  sessions: StudentSession[];
+};

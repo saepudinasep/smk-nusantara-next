@@ -14,15 +14,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -31,85 +22,35 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useFakeLoad } from '@/lib/fake-api';
-import {
-  DAYS,
-  detailClasses,
-  detailSchedules,
-  getShift,
-  getSubject,
-  headerSchedules,
-  students,
-  teachers,
-  type Student,
-} from '@/lib/dummy-data';
+import type { ClassStudent, TeacherScheduleData } from '@/lib/schedule-types';
 
-type Row = {
-  detailId: number;
-  subjectId: string;
-  subject: string;
-  className: string;
-  day: string;
-  time: string;
-};
-
-const studentColumns: Column<Student>[] = [
+const studentColumns: Column<ClassStudent>[] = [
   { header: 'Student ID', cell: (s) => s.studentId },
   { header: 'Student Name', cell: (s) => s.name, className: 'font-medium' },
   { header: 'Gender', cell: (s) => s.gender },
 ];
 
-function scheduleOf(teacherId: string): Row[] {
-  return detailSchedules
-    .filter((d) => d.teacherId === teacherId)
-    .sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.shiftId - b.shiftId)
-    .map((d) => ({
-      detailId: d.detailId,
-      subjectId: d.subjectId,
-      subject: getSubject(d.subjectId).name,
-      className: headerSchedules.find((h) => h.scheduleId === d.scheduleId)!.className,
-      day: d.day,
-      time: getShift(d.shiftId).time,
-    }));
-}
+export function TeacherSchedule({ teacher, sessions, studentsByClass }: TeacherScheduleData) {
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
-const studentsOfClass = (className: string): Student[] => {
-  const ids = new Set(
-    detailClasses.filter((d) => d.className === className).map((d) => d.studentId),
-  );
-  return students.filter((s) => ids.has(s.studentId));
-};
+  // baris terpilih; kalau belum ada otomatis baris pertama
+  const selected = sessions.find((r) => r.id === selectedId) ?? sessions[0];
+  const classStudents = selected ? (studentsByClass[selected.className] ?? []) : [];
 
-export function TeacherSchedule() {
-  const [teacherId, setTeacherId] = React.useState(teachers[0].teacherId);
-  const [selectedId, setSelectedId] = React.useState<number | null>(null);
-
-  const rows = scheduleOf(teacherId);
-  // baris terpilih; kalau belum ada (atau ganti guru) otomatis baris pertama
-  const selected = rows.find((r) => r.detailId === selectedId) ?? rows[0];
-  const loading = useFakeLoad(teacherId); // ganti dengan isLoading dari API
-  const studentsLoading = useFakeLoad(`${teacherId}|${selected?.className ?? ''}`);
-  const classStudents = selected ? studentsOfClass(selected.className) : [];
-
-  const classNames = [...new Set(rows.map((r) => r.className))];
+  const classNames = [...new Set(sessions.map((r) => r.className))];
   const taughtStudents = new Set(
-    detailClasses.filter((d) => classNames.includes(d.className)).map((d) => d.studentId),
+    classNames.flatMap((c) => (studentsByClass[c] ?? []).map((s) => s.studentId)),
   ).size;
-  const activeDays = new Set(rows.map((r) => r.day)).size;
-
-  const teacherItems = teachers.map((t) => ({
-    value: t.teacherId,
-    label: `${t.teacherId} - ${t.name}`,
-  }));
+  const activeDays = new Set(sessions.map((r) => r.day)).size;
+  const draftClasses = [...new Set(sessions.filter((r) => !r.finalized).map((r) => r.className))];
 
   return (
     <div className='flex flex-col gap-4 md:gap-6'>
       <StatCards
-        loading={loading}
         items={[
           {
             label: 'Teaching Sessions',
-            value: rows.length,
+            value: sessions.length,
             icon: CalendarDaysIcon,
             badge: `${activeDays} ${activeDays === 1 ? 'day' : 'days'}`,
             title: 'Sessions this week',
@@ -134,29 +75,12 @@ export function TeacherSchedule() {
         ]}
       />
 
-      <div className='flex items-center gap-3'>
-        <Label>Teacher</Label>
-        <Select
-          items={teacherItems}
-          value={teacherId}
-          onValueChange={(v) => {
-            if (!v) return;
-            setTeacherId(v);
-            setSelectedId(null);
-          }}
-        >
-          <SelectTrigger className='w-64' aria-label='Teacher'>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {teacherItems.map((i) => (
-              <SelectItem key={i.value} value={i.value}>
-                {i.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <p className='text-sm text-muted-foreground'>
+        Schedule for <span className='font-medium text-foreground'>{teacher.name}</span> (
+        {teacher.teacherId})
+        {draftClasses.length > 0 &&
+          ` · Draft schedule for ${draftClasses.join(', ')} may still change`}
+      </p>
 
       <Card>
         <CardHeader>
@@ -173,49 +97,44 @@ export function TeacherSchedule() {
                   <TableHead>Class Name</TableHead>
                   <TableHead>Day</TableHead>
                   <TableHead>Time</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading &&
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <TableRow key={`skeleton-${i}`} aria-busy='true'>
-                      {Array.from({ length: 5 }).map((__, j) => (
-                        <TableCell key={j}>
-                          <Skeleton className='h-4 w-full max-w-32' />
-                        </TableCell>
-                      ))}
+                {sessions.map((r) => {
+                  const active = selected?.id === r.id;
+                  return (
+                    <TableRow
+                      key={r.id}
+                      tabIndex={0}
+                      aria-selected={active}
+                      data-state={active ? 'selected' : undefined}
+                      className='cursor-pointer'
+                      onClick={() => setSelectedId(r.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedId(r.id);
+                        }
+                      }}
+                    >
+                      <TableCell>{r.subjectId}</TableCell>
+                      <TableCell className='font-medium'>{r.subject}</TableCell>
+                      <TableCell>{r.className}</TableCell>
+                      <TableCell>{r.day}</TableCell>
+                      <TableCell className='tabular-nums'>{r.time}</TableCell>
+                      <TableCell>
+                        <Badge variant={r.finalized ? 'default' : 'outline'}>
+                          {r.finalized ? 'Finalized' : 'Draft'}
+                        </Badge>
+                      </TableCell>
                     </TableRow>
-                  ))}
-                {!loading &&
-                  rows.map((r) => {
-                    const active = selected?.detailId === r.detailId;
-                    return (
-                      <TableRow
-                        key={r.detailId}
-                        tabIndex={0}
-                        aria-selected={active}
-                        data-state={active ? 'selected' : undefined}
-                        className='cursor-pointer'
-                        onClick={() => setSelectedId(r.detailId)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setSelectedId(r.detailId);
-                          }
-                        }}
-                      >
-                        <TableCell>{r.subjectId}</TableCell>
-                        <TableCell className='font-medium'>{r.subject}</TableCell>
-                        <TableCell>{r.className}</TableCell>
-                        <TableCell>{r.day}</TableCell>
-                        <TableCell className='tabular-nums'>{r.time}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                {!loading && rows.length === 0 && (
+                  );
+                })}
+                {sessions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className='h-24 text-center text-muted-foreground'>
-                      This teacher has no teaching schedule yet.
+                    <TableCell colSpan={6} className='h-24 text-center text-muted-foreground'>
+                      You have no teaching schedule yet.
                     </TableCell>
                   </TableRow>
                 )}
@@ -240,7 +159,6 @@ export function TeacherSchedule() {
         <CardContent>
           <SimpleDataTable
             key={selected?.className ?? 'none'}
-            loading={loading || studentsLoading}
             data={classStudents}
             columns={studentColumns}
             getRowId={(s) => s.studentId}
