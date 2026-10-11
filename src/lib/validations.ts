@@ -130,3 +130,20 @@ export const sessionCreateSchema = z.object({
 
 export const sessionUpdateSchema = z.object({ id: objectId, ...sessionFields });
 export const sessionIdSchema = objectId;
+
+// ----- Nilai (guru) -----
+const score = z
+  .number('Score must be a number.')
+  .int('Score must be a whole number.')
+  .min(0, 'Score must be between 0 and 100.')
+  .max(100, 'Score must be between 0 and 100.')
+  .nullable();
+
+export const saveScoreSchema = z.object({
+  className: z.string().trim().min(1, 'Class is required.').max(5, 'Invalid class.'),
+  subjectId: z.string().trim().min(1, 'Subject is required.').max(5, 'Invalid subject.'),
+  studentId: z.string().trim().min(1, 'Student is required.').max(8, 'Invalid student.'),
+  assignment: score,
+  midExam: score,
+  finalExam: score,
+});

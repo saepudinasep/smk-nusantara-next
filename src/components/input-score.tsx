@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { useSession } from 'next-auth/react';
 import { BookOpenCheckIcon, ClipboardCheckIcon, UsersIcon } from 'lucide-react';
 
+import type { ActionResult } from '@/actions/result';
+import { saveScore } from '@/actions/scores';
 import { SimpleDataTable, type Column } from '@/components/simple-data-table';
 import { StatCards } from '@/components/stat-cards';
 import { Button } from '@/components/ui/button';
@@ -26,27 +27,12 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Spinner } from '@/components/ui/spinner';
-import { useFakeLoad, wait } from '@/lib/fake-api';
-import {
-  PASSING_SCORE,
-  detailClasses,
-  detailSchedules,
-  detailScores,
-  getSubject,
-  headerSchedules,
-  students,
-  type Subject,
-} from '@/lib/dummy-data';
+import type { InputScoreData, ScoreStudent, ScoreValues } from '@/lib/score-types';
+import { PASSING_SCORE, average, finalScore } from '@/lib/scoring';
 
-type Scores = { assignment: number | null; midExam: number | null; finalExam: number | null };
-type Row = Scores & { studentId: string; name: string; final: number | null };
+type Row = ScoreStudent & { final: number | null };
 
 const show = (n: number | null) => (n === null ? '-' : n);
-
-const finalOf = (s: Scores, w: Subject): number | null =>
-  s.assignment === null || s.midExam === null || s.finalExam === null
-    ? null
-    : Math.round(((s.assignment * w.assignment + s.midExam * w.midExam + s.finalExam * w.finalExam) / 100) * 10) / 10;
 
 const columns: Column<Row>[] = [
   { header: 'Student ID', cell: (r) => r.studentId },
@@ -64,7 +50,7 @@ function EntryScoreSheet({
   onClose,
 }: {
   row: Row;
-  onSave: (s: Scores) => Promise<void>;
+  onSave: (s: ScoreValues) => Promise<ActionResult>;
   onClose: () => void;
 }) {
   const [form, setForm] = React.useState({
@@ -73,6 +59,7 @@ function EntryScoreSheet({
     finalExam: row.finalExam === null ? '' : String(row.finalExam),
   });
   const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
 
   const fields = [
     { key: 'assignment', label: 'Assignment' },
@@ -81,19 +68,29 @@ function EntryScoreSheet({
   ] as const;
 
   const outOfRange = (v: string) => v !== '' && Number(v) > 100;
-  const anyFilled = fields.some((f) => form[f.key] !== '');
-  const valid = anyFilled && !fields.some((f) => outOfRange(form[f.key]));
+  const valid = !fields.some((f) => outOfRange(form[f.key]));
+  const unchanged =
+    form.assignment === (row.assignment === null ? '' : String(row.assignment)) &&
+    form.midExam === (row.midExam === null ? '' : String(row.midExam)) &&
+    form.finalExam === (row.finalExam === null ? '' : String(row.finalExam));
 
   const submit = async () => {
     setSaving(true);
-    const toNum = (v: string) => (v === '' ? null : Number(v));
-    await onSave({
-      assignment: toNum(form.assignment),
-      midExam: toNum(form.midExam),
-      finalExam: toNum(form.finalExam),
-    });
-    setSaving(false);
-    onClose();
+    setError('');
+    try {
+      const toNum = (v: string) => (v === '' ? null : Number(v));
+      const result = await onSave({
+        assignment: toNum(form.assignment),
+        midExam: toNum(form.midExam),
+        finalExam: toNum(form.finalExam),
+      });
+      if (result.ok) onClose();
+      else setError(result.error);
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -116,15 +113,28 @@ function EntryScoreSheet({
                 placeholder='0 - 100'
                 value={form[f.key]}
                 aria-invalid={outOfRange(form[f.key])}
-                onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value.replace(/\D/g, '') }))}
+                onChange={(e) => {
+                  setForm((s) => ({ ...s, [f.key]: e.target.value.replace(/\D/g, '') }));
+                  setError('');
+                }}
               />
-              {outOfRange(form[f.key]) && <p className='text-xs text-destructive'>Score must be between 0 and 100.</p>}
+              {outOfRange(form[f.key]) && (
+                <p className='text-xs text-destructive'>Score must be between 0 and 100.</p>
+              )}
             </div>
           ))}
-          <p className='text-xs text-muted-foreground'>Leave a field empty if the score is not available yet.</p>
+          <p className='text-xs text-muted-foreground'>
+            Leave a field empty if the score is not available yet. Clearing all three removes the
+            scores of this student.
+          </p>
+          {error && (
+            <p role='alert' className='text-sm text-destructive'>
+              {error}
+            </p>
+          )}
         </div>
         <SheetFooter className='border-t'>
-          <Button disabled={!valid || saving} onClick={submit}>
+          <Button disabled={!valid || unchanged || saving} onClick={submit}>
             {saving && <Spinner />}
             {saving ? 'Saving...' : 'Save'}
           </Button>
@@ -137,58 +147,23 @@ function EntryScoreSheet({
   );
 }
 
-export function InputScore() {
-  const { data: session } = useSession();
-  const teacherId = session?.user.username ?? ''; // username guru = TeacherID
-
-  // Hanya pelajaran + kelas yang diajar guru yang sedang login
-  const classOf = (scheduleId: number) => headerSchedules.find((h) => h.scheduleId === scheduleId)!.className;
-  const mySessions = detailSchedules.filter((d) => d.teacherId === teacherId);
-  const subjectIds = [...new Set(mySessions.map((d) => d.subjectId))];
+export function InputScore({ groups }: InputScoreData) {
+  const subjectIds = [...new Set(groups.map((g) => g.subjectId))];
 
   const [pickedSubject, setPickedSubject] = React.useState('');
   const [pickedClass, setPickedClass] = React.useState('');
+  const [editing, setEditing] = React.useState<Row | null>(null);
 
   // pilihan yang tidak valid (mis. setelah ganti pelajaran) otomatis jatuh ke opsi pertama
   const subjectId = subjectIds.includes(pickedSubject) ? pickedSubject : (subjectIds[0] ?? '');
-  const classNames = [...new Set(mySessions.filter((d) => d.subjectId === subjectId).map((d) => classOf(d.scheduleId)))];
+  const classNames = groups.filter((g) => g.subjectId === subjectId).map((g) => g.className);
   const className = classNames.includes(pickedClass) ? pickedClass : (classNames[0] ?? '');
+  const group = groups.find((g) => g.subjectId === subjectId && g.className === className);
 
-  const detail = mySessions.find((d) => d.subjectId === subjectId && classOf(d.scheduleId) === className);
-  const subject = subjectId ? getSubject(subjectId) : undefined;
-
-  // nilai tersimpan: "detailId:studentId" -> nilai (awal dari data dummy)
-  const [scores, setScores] = React.useState<Record<string, Scores>>(() =>
-    Object.fromEntries(
-      detailScores.map((s) => [`${s.detailId}:${s.studentId}`, { assignment: s.assignment, midExam: s.midExam, finalExam: s.finalExam }])
-    )
-  );
-  const [editing, setEditing] = React.useState<Row | null>(null);
-  const loading = useFakeLoad(`${subjectId}|${className}`); // ganti dengan isLoading dari API
-
-  const rows: Row[] =
-    detail && subject
-      ? students
-          .filter((s) => detailClasses.some((d) => d.studentId === s.studentId && d.className === className))
-          .map((s) => {
-            const sc = scores[`${detail.detailId}:${s.studentId}`] ?? { assignment: null, midExam: null, finalExam: null };
-            return { studentId: s.studentId, name: s.name, ...sc, final: finalOf(sc, subject) };
-          })
-      : [];
-
-  const completed = rows.filter((r) => r.final !== null);
-  const average = completed.length ? Math.round((completed.reduce((a, r) => a + r.final!, 0) / completed.length) * 10) / 10 : null;
-  const passed = completed.filter((r) => r.final! >= PASSING_SCORE).length;
-
-  const subjectItems = subjectIds.map((id) => ({ value: id, label: `${id} - ${getSubject(id).name}` }));
-  const classItems = classNames.map((c) => ({ value: c, label: c }));
-
-  if (!session) return null; // sesi belum siap (sangat singkat)
-
-  if (subjectIds.length === 0) {
+  if (!group) {
     return (
       <Card>
-        <CardContent className='flex h-40 flex-col items-center justify-center gap-2 text-sm text-muted-foreground'>
+        <CardContent className='flex h-40 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground'>
           <ClipboardCheckIcon className='size-6' />
           You have no teaching sessions yet, so there are no scores to enter.
         </CardContent>
@@ -196,16 +171,26 @@ export function InputScore() {
     );
   }
 
+  const rows: Row[] = group.students.map((s) => ({ ...s, final: finalScore(s, group.weights) }));
+  const completed = rows.filter((r) => r.final !== null);
+  const classAverage = average(completed.map((r) => r.final as number));
+  const passed = completed.filter((r) => (r.final as number) >= PASSING_SCORE).length;
+
+  const subjectItems = subjectIds.map((id) => ({
+    value: id,
+    label: `${id} - ${groups.find((g) => g.subjectId === id)!.subject}`,
+  }));
+  const classItems = classNames.map((c) => ({ value: c, label: c }));
+
   return (
     <div className='flex flex-col gap-4 md:gap-6'>
       <StatCards
-        loading={loading}
         items={[
           {
             label: `Class ${className}`,
             value: rows.length,
             icon: UsersIcon,
-            badge: subject?.name ?? '-',
+            badge: group.subject,
             title: 'Students in this class',
             note: `Subject ${subjectId}`,
           },
@@ -219,7 +204,7 @@ export function InputScore() {
           },
           {
             label: 'Class Average',
-            value: average ?? '-',
+            value: classAverage ?? '-',
             icon: BookOpenCheckIcon,
             badge: `Pass ≥ ${PASSING_SCORE}`,
             title: `${passed} of ${completed.length} students passed`,
@@ -232,7 +217,11 @@ export function InputScore() {
         <div className='flex flex-wrap items-center gap-x-6 gap-y-3'>
           <div className='flex items-center gap-3'>
             <Label>Subject</Label>
-            <Select items={subjectItems} value={subjectId} onValueChange={(v) => v && setPickedSubject(v)}>
+            <Select
+              items={subjectItems}
+              value={subjectId}
+              onValueChange={(v) => v && setPickedSubject(v)}
+            >
               <SelectTrigger className='w-56' aria-label='Subject'>
                 <SelectValue />
               </SelectTrigger>
@@ -247,7 +236,11 @@ export function InputScore() {
           </div>
           <div className='flex items-center gap-3'>
             <Label>Class Name</Label>
-            <Select items={classItems} value={className} onValueChange={(v) => v && setPickedClass(v)}>
+            <Select
+              items={classItems}
+              value={className}
+              onValueChange={(v) => v && setPickedClass(v)}
+            >
               <SelectTrigger className='w-36' aria-label='Class name'>
                 <SelectValue />
               </SelectTrigger>
@@ -261,15 +254,13 @@ export function InputScore() {
             </Select>
           </div>
         </div>
-        {subject && (
-          <p className='text-sm text-muted-foreground'>
-            Assignment: {subject.assignment}%, Mid Exam: {subject.midExam}%, Final Exam: {subject.finalExam}%
-          </p>
-        )}
+        <p className='text-sm text-muted-foreground'>
+          Assignment: {group.weights.assignment}%, Mid Exam: {group.weights.midExam}%, Final Exam:{' '}
+          {group.weights.finalExam}%
+        </p>
       </div>
 
       <SimpleDataTable
-        loading={loading}
         data={rows}
         columns={columns}
         getRowId={(r) => r.studentId}
@@ -278,15 +269,12 @@ export function InputScore() {
         editLabel='Entry Score'
       />
 
-      {editing && detail && (
+      {editing && (
         <EntryScoreSheet
-          key={editing.studentId}
+          key={`${className}|${subjectId}|${editing.studentId}`}
           row={editing}
           onClose={() => setEditing(null)}
-          onSave={async (s) => {
-            await wait(); // ganti dengan upsert DetailScore ke API
-            setScores((prev) => ({ ...prev, [`${detail.detailId}:${editing.studentId}`]: s }));
-          }}
+          onSave={(s) => saveScore({ className, subjectId, studentId: editing.studentId, ...s })}
         />
       )}
     </div>
