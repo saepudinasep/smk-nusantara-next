@@ -14,6 +14,8 @@ const STALE = 'The class list has changed. Refresh the page and try again.';
 function refresh() {
   revalidatePath('/manage-class');
   revalidatePath('/manage-student');
+  revalidatePath('/dashboard');
+  revalidatePath('/view-report-score');
 }
 
 /** Masukkan siswa (yang belum punya kelas) ke sebuah kelas. Satu siswa hanya boleh di satu kelas. */

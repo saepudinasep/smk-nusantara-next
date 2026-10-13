@@ -1,21 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from 'recharts';
 import { AwardIcon, BookOpenCheckIcon, PercentIcon } from 'lucide-react';
 
+import { ReportBarChart } from '@/components/report-bar-chart';
 import { SimpleDataTable, type Column } from '@/components/simple-data-table';
 import { StatCards } from '@/components/stat-cards';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from '@/components/ui/chart';
 import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -23,109 +16,94 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useFakeLoad } from '@/lib/fake-api';
-import { PASSING_SCORE, classes, reportScore, scoreRows, subjectOptions } from '@/lib/dummy-data';
+import { reportSummary } from '@/lib/report';
+import type { ReportClassStats, ReportScoreData } from '@/lib/report-types';
+import { GRADE_LABEL } from '@/lib/schedule-types';
+import { PASSING_SCORE } from '@/lib/scoring';
 
-const gradeLabel: Record<number, string> = { 10: 'X', 11: 'XI', 12: 'XII' };
-const avg = (n: number[]) =>
-  n.length ? Math.round((n.reduce((a, b) => a + b, 0) / n.length) * 10) / 10 : 0;
+const show = (n: number | null) => (n === null ? '-' : n);
+const percent = (s: ReportClassStats) =>
+  s.completed ? Math.round((s.passed / s.completed) * 100) : null;
 
-const chartConfig = {
-  classA: { label: 'Class A', color: 'var(--primary)' },
-  classB: { label: 'Class B', color: 'var(--chart-2)' },
-} satisfies ChartConfig;
-
-type ClassRow = {
-  className: string;
-  grade: string;
-  students: number;
-  assignment: number;
-  midExam: number;
-  finalExam: number;
-  final: number;
-  passed: number;
-};
-
-const columns: Column<ClassRow>[] = [
+const columns: Column<ReportClassStats>[] = [
   { header: 'Class', cell: (r) => r.className, className: 'font-medium' },
-  { header: 'Grade', cell: (r) => r.grade },
-  { header: 'Students', cell: (r) => r.students, className: 'text-right tabular-nums' },
-  { header: 'Assignment', cell: (r) => r.assignment, className: 'text-right tabular-nums' },
-  { header: 'Mid Exam', cell: (r) => r.midExam, className: 'text-right tabular-nums' },
-  { header: 'Final Exam', cell: (r) => r.finalExam, className: 'text-right tabular-nums' },
-  { header: 'Final (avg)', cell: (r) => r.final, className: 'text-right font-medium tabular-nums' },
+  { header: 'Grade', cell: (r) => GRADE_LABEL[r.grade] ?? r.grade },
+  {
+    header: 'Scored',
+    cell: (r) => `${r.completed}/${r.students}`,
+    className: 'text-right tabular-nums',
+  },
+  { header: 'Assignment', cell: (r) => show(r.assignment), className: 'text-right tabular-nums' },
+  { header: 'Mid Exam', cell: (r) => show(r.midExam), className: 'text-right tabular-nums' },
+  { header: 'Final Exam', cell: (r) => show(r.finalExam), className: 'text-right tabular-nums' },
+  {
+    header: 'Final (avg)',
+    cell: (r) => show(r.final),
+    className: 'text-right font-medium tabular-nums',
+  },
   {
     header: 'Passed',
-    cell: (r) => <Badge variant={r.passed >= 75 ? 'default' : 'outline'}>{r.passed}%</Badge>,
+    cell: (r) => {
+      const p = percent(r);
+      return p === null ? '-' : <Badge variant={p >= 75 ? 'default' : 'outline'}>{p}%</Badge>;
+    },
   },
 ];
 
-export function ReportScore() {
-  const [subject, setSubject] = React.useState(subjectOptions[0]);
-  const loading = useFakeLoad(subject); // ganti dengan isLoading dari API
-  const { chart, passedPercentage } = React.useMemo(() => reportScore(subject), [subject]);
+export function ReportScore({ subjects, stats }: ReportScoreData) {
+  const [picked, setPicked] = React.useState('');
+  const subject = subjects.includes(picked) ? picked : (subjects[0] ?? '');
+  const classStats = stats[subject] ?? [];
+  const summary = reportSummary(classStats);
 
-  const classRows: ClassRow[] = React.useMemo(
-    () =>
-      classes.map((c) => {
-        const rows = scoreRows.filter(
-          (r) => r.subject.name === subject && r.className === c.className,
-        );
-        return {
-          className: c.className,
-          grade: gradeLabel[c.grade],
-          students: new Set(rows.map((r) => r.studentId)).size,
-          assignment: avg(rows.map((r) => r.assignment ?? 0)),
-          midExam: avg(rows.map((r) => r.midExam ?? 0)),
-          finalExam: avg(rows.map((r) => r.finalExam ?? 0)),
-          final: avg(rows.map((r) => r.final)),
-          passed: rows.length
-            ? Math.round((rows.filter((r) => r.final >= PASSING_SCORE).length / rows.length) * 100)
-            : 0,
-        };
-      }),
-    [subject],
-  );
+  if (subjects.length === 0) {
+    return (
+      <Card>
+        <CardContent className='flex h-32 items-center justify-center text-sm text-muted-foreground'>
+          No subjects found in the database.
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const overall = avg(classRows.filter((r) => r.students > 0).map((r) => r.final));
-  const best = [...classRows].sort((a, b) => b.final - a.final)[0];
-  const subjectItems = subjectOptions.map((s) => ({ value: s, label: s }));
+  const subjectItems = subjects.map((s) => ({ value: s, label: s }));
 
   return (
     <div className='flex flex-col gap-4 md:gap-6'>
       <StatCards
-        loading={loading}
         items={[
           {
             label: `Average Final Score · ${subject}`,
-            value: overall,
+            value: summary.average ?? '-',
             icon: BookOpenCheckIcon,
             badge: `Pass ≥ ${PASSING_SCORE}`,
             title: 'Mean of all class averages',
-            note: 'Final = 20% assignment + 30% mid + 50% final exam',
+            note: 'Final = weighted average of assignment, mid and final exam',
           },
           {
             label: 'Passed Percentage',
-            value: `${passedPercentage}%`,
+            value: summary.passedPercent === null ? '-' : `${summary.passedPercent}%`,
             icon: PercentIcon,
             badge: subject,
             title: 'Students at or above the passing score',
-            note: `Passing score is ${PASSING_SCORE}`,
+            note: `Based on ${summary.completed} students with complete scores`,
           },
           {
             label: 'Best Class',
-            value: best.className,
+            value: summary.best?.className ?? '-',
             icon: AwardIcon,
-            badge: `Grade ${best.grade}`,
-            title: `Average ${best.final}`,
-            note: `${best.passed}% of its students passed`,
+            badge: summary.best ? `Grade ${GRADE_LABEL[summary.best.grade]}` : '-',
+            title: summary.best ? `Average ${summary.best.final}` : 'No completed scores yet',
+            note: summary.best
+              ? `${percent(summary.best)}% of its scored students passed`
+              : 'Scores appear after teachers enter them',
           },
         ]}
       />
 
       <div className='flex items-center gap-3'>
         <Label>Subject Name</Label>
-        <Select items={subjectItems} value={subject} onValueChange={(v) => v && setSubject(v)}>
+        <Select items={subjectItems} value={subject} onValueChange={(v) => v && setPicked(v)}>
           <SelectTrigger className='w-48' aria-label='Subject name'>
             <SelectValue />
           </SelectTrigger>
@@ -144,40 +122,25 @@ export function ReportScore() {
           <CardTitle>Average Score</CardTitle>
           <CardDescription>
             Average final score per grade, Class A vs Class B · Passed percentage:{' '}
-            {passedPercentage}%
+            {summary.passedPercent === null ? '-' : `${summary.passedPercent}%`}
           </CardDescription>
         </CardHeader>
         <CardContent className='px-2 pt-4 sm:px-6 sm:pt-6'>
-          {loading ? (
-            <Skeleton className='h-[300px] w-full' aria-busy='true' />
-          ) : (
-            <ChartContainer config={chartConfig} className='aspect-auto h-[300px] w-full'>
-              <BarChart data={chart} margin={{ top: 20 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey='grade' tickLine={false} axisLine={false} tickMargin={8} />
-                <YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={32} />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator='dot' />} />
-                <Bar dataKey='classA' fill='var(--color-classA)' radius={4}>
-                  <LabelList dataKey='classA' position='top' className='fill-foreground text-xs' />
-                </Bar>
-                <Bar dataKey='classB' fill='var(--color-classB)' radius={4}>
-                  <LabelList dataKey='classB' position='top' className='fill-foreground text-xs' />
-                </Bar>
-              </BarChart>
-            </ChartContainer>
-          )}
+          <ReportBarChart stats={classStats} className='h-[300px]' />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Score per Class</CardTitle>
-          <CardDescription>Component averages for {subject}</CardDescription>
+          <CardDescription>
+            Component averages for {subject}. The Scored column counts students whose three scores
+            are complete.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <SimpleDataTable
-            loading={loading}
-            data={classRows}
+            data={classStats}
             columns={columns}
             getRowId={(r) => r.className}
             pageSizeOptions={[6, 12]}

@@ -15,6 +15,7 @@ const TAKEN = 'That slot was just taken by another change. Refresh the page and 
 function refresh() {
   revalidatePath('/manage-schedule');
   revalidatePath('/finalize-schedule');
+  revalidatePath('/dashboard');
 }
 
 type Fields = { subjectId: string; teacherId: string; shiftId: number };

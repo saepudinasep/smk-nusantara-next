@@ -54,6 +54,7 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
   }
 
   revalidatePath('/manage-student');
+  revalidatePath('/dashboard');
   return { ok: true };
 }
 
@@ -79,6 +80,7 @@ export async function updateStudent(input: unknown): Promise<ActionResult> {
   }
 
   revalidatePath('/manage-student');
+  revalidatePath('/dashboard');
   return { ok: true };
 }
 
@@ -104,6 +106,7 @@ export async function deleteStudent(studentId: string): Promise<ActionResult> {
   }
 
   revalidatePath('/manage-student');
+  revalidatePath('/dashboard');
   return { ok: true };
 }
 

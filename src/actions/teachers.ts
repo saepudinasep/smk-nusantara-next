@@ -53,6 +53,7 @@ export async function createTeacher(input: unknown): Promise<ActionResult> {
   }
 
   revalidatePath('/manage-teacher');
+  revalidatePath('/dashboard');
   return { ok: true };
 }
 
@@ -78,6 +79,7 @@ export async function updateTeacher(input: unknown): Promise<ActionResult> {
   }
 
   revalidatePath('/manage-teacher');
+  revalidatePath('/dashboard');
   return { ok: true };
 }
 
@@ -110,6 +112,7 @@ export async function deleteTeacher(teacherId: string): Promise<ActionResult> {
   }
 
   revalidatePath('/manage-teacher');
+  revalidatePath('/dashboard');
   return { ok: true };
 }
 

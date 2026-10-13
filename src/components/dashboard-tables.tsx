@@ -11,30 +11,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { classes, scheduleFor, studentSummaries, teacherSummaries } from '@/lib/dummy-data';
+import type { DashboardStudent, DashboardTeacher } from '@/lib/report-types';
+import { DAYS, type ScheduleBundle } from '@/lib/schedule-types';
+import { PASSING_SCORE } from '@/lib/scoring';
 
-function ScheduleTable() {
-  const [className, setClassName] = React.useState(classes[0].className);
-  const { finalized, rows } = scheduleFor(className);
+const show = (n: number | null) => (n === null ? '-' : n);
+
+function ScheduleTable({ schedule }: { schedule: ScheduleBundle }) {
+  const [picked, setPicked] = React.useState('');
+  const className = schedule.classes.some((c) => c.className === picked)
+    ? picked
+    : (schedule.classes[0]?.className ?? '');
+  const room = schedule.classes.find((c) => c.className === className);
+
+  const rows = schedule.sessions
+    .filter((s) => s.className === className)
+    .sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.shiftId - b.shiftId);
+  const items = schedule.classes.map((c) => ({ value: c.className, label: c.className }));
 
   return (
     <div className='flex flex-col gap-3'>
       <div className='flex items-center gap-2'>
-        <Select value={className} onValueChange={(v) => v && setClassName(v)}>
+        <Select items={items} value={className} onValueChange={(v) => v && setPicked(v)}>
           <SelectTrigger size='sm' className='w-32' aria-label='Select class'>
             <SelectValue placeholder='Class' />
           </SelectTrigger>
           <SelectContent>
-            {classes.map((c) => (
-              <SelectItem key={c.className} value={c.className}>
-                {c.className}
+            {items.map((i) => (
+              <SelectItem key={i.value} value={i.value}>
+                {i.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Badge variant={finalized ? 'default' : 'outline'}>{finalized ? 'Finalized' : 'Draft'}</Badge>
+        {room && (
+          <Badge variant={room.finalized ? 'default' : 'outline'}>
+            {room.finalized ? 'Finalized' : 'Draft'}
+          </Badge>
+        )}
       </div>
       <div className='overflow-hidden rounded-lg border'>
         <Table>
@@ -49,16 +72,27 @@ function ScheduleTable() {
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.detailId}>
+              <TableRow key={r.id}>
                 <TableCell>{r.day}</TableCell>
-                <TableCell className='tabular-nums'>{r.time}</TableCell>
+                <TableCell className='tabular-nums'>
+                  {schedule.shifts.find((s) => s.shiftId === r.shiftId)?.time ?? '-'}
+                </TableCell>
                 <TableCell>{r.subjectId}</TableCell>
-                <TableCell>{r.subject}</TableCell>
                 <TableCell>
-                  {r.teacherId} - {r.teacher}
+                  {schedule.subjects.find((s) => s.subjectId === r.subjectId)?.name ?? r.subjectId}
+                </TableCell>
+                <TableCell>
+                  {r.teacherId} - {schedule.teachers.find((t) => t.teacherId === r.teacherId)?.name}
                 </TableCell>
               </TableRow>
             ))}
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className='h-24 text-center text-muted-foreground'>
+                  No sessions scheduled for this class.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
@@ -66,9 +100,7 @@ function ScheduleTable() {
   );
 }
 
-function ScoreTable() {
-  const rows = React.useMemo(() => [...studentSummaries()].sort((a, b) => b.final - a.final), []);
-
+function ScoreTable({ students }: { students: DashboardStudent[] }) {
   return (
     <div className='overflow-hidden rounded-lg border'>
       <Table>
@@ -85,31 +117,40 @@ function ScoreTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((r) => (
+          {students.map((r) => (
             <TableRow key={r.studentId}>
               <TableCell>{r.studentId}</TableCell>
               <TableCell className='font-medium'>{r.name}</TableCell>
               <TableCell>{r.className}</TableCell>
-              <TableCell className='text-right tabular-nums'>{r.assignment}</TableCell>
-              <TableCell className='text-right tabular-nums'>{r.midExam}</TableCell>
-              <TableCell className='text-right tabular-nums'>{r.finalExam}</TableCell>
-              <TableCell className='text-right font-medium tabular-nums'>{r.final}</TableCell>
+              <TableCell className='text-right tabular-nums'>{show(r.assignment)}</TableCell>
+              <TableCell className='text-right tabular-nums'>{show(r.midExam)}</TableCell>
+              <TableCell className='text-right tabular-nums'>{show(r.finalExam)}</TableCell>
+              <TableCell className='text-right font-medium tabular-nums'>{show(r.final)}</TableCell>
               <TableCell>
-                <Badge variant={r.passed ? 'default' : 'destructive'}>
-                  {r.passed ? 'Passed' : 'Not passed'}
-                </Badge>
+                {r.final === null ? (
+                  <Badge variant='outline'>No scores</Badge>
+                ) : (
+                  <Badge variant={r.final >= PASSING_SCORE ? 'default' : 'destructive'}>
+                    {r.final >= PASSING_SCORE ? 'Passed' : 'Not passed'}
+                  </Badge>
+                )}
               </TableCell>
             </TableRow>
           ))}
+          {students.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={8} className='h-24 text-center text-muted-foreground'>
+                No students are assigned to a class yet.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>
   );
 }
 
-function TeacherTable() {
-  const rows = teacherSummaries();
-
+function TeacherTable({ teachers }: { teachers: DashboardTeacher[] }) {
   return (
     <div className='overflow-hidden rounded-lg border'>
       <Table>
@@ -124,7 +165,7 @@ function TeacherTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((t) => (
+          {teachers.map((t) => (
             <TableRow key={t.teacherId}>
               <TableCell>{t.teacherId}</TableCell>
               <TableCell className='font-medium'>{t.name}</TableCell>
@@ -142,18 +183,33 @@ function TeacherTable() {
               <TableCell className='text-right tabular-nums'>{t.sessions}</TableCell>
             </TableRow>
           ))}
+          {teachers.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={6} className='h-24 text-center text-muted-foreground'>
+                No teachers found.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>
   );
 }
 
-export function DashboardTables() {
+export function DashboardTables({
+  schedule,
+  students,
+  teachers,
+}: {
+  schedule: ScheduleBundle;
+  students: DashboardStudent[];
+  teachers: DashboardTeacher[];
+}) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>School Data</CardTitle>
-        <CardDescription>Class schedule, student scores, and teachers (dummy data)</CardDescription>
+        <CardDescription>Class schedule, student scores, and teachers</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue='schedule'>
@@ -163,13 +219,13 @@ export function DashboardTables() {
             <TabsTrigger value='teachers'>Teachers</TabsTrigger>
           </TabsList>
           <TabsContent value='schedule'>
-            <ScheduleTable />
+            <ScheduleTable schedule={schedule} />
           </TabsContent>
           <TabsContent value='scores'>
-            <ScoreTable />
+            <ScoreTable students={students} />
           </TabsContent>
           <TabsContent value='teachers'>
-            <TeacherTable />
+            <TeacherTable teachers={teachers} />
           </TabsContent>
         </Tabs>
       </CardContent>
