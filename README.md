@@ -43,6 +43,16 @@ VAPID_SUBJECT=mailto:admin@example.com
 
 Keep `VAPID_PRIVATE_KEY` secret. Users can enable/disable notifications from the Notifications page; their browser must grant permission. Push notifications require HTTPS (localhost is supported for development).
 
+## Arcjet bot protection
+
+Arcjet protects application pages and API routes with Shield and bot detection. Create a site at [Arcjet](https://console.arcjet.com), then add its key to `.env`:
+
+```dotenv
+ARCJET_KEY=
+```
+
+Detected bots are denied on all matched routes. Static assets and Next.js internal assets are excluded from the proxy matcher. For safety, production requests return `503` until `ARCJET_KEY` is configured; development logs a warning and continues without Arcjet protection.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

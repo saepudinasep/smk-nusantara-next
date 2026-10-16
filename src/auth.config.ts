@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from 'next-auth';
 
+import { protectRequest } from '@/lib/arcjet';
 import { ROLE_HOME, canAccess } from '@/lib/access';
 
 // Konfigurasi yang AMAN untuk proxy.ts: tanpa Prisma dan bcrypt.
@@ -10,9 +11,16 @@ export const authConfig = {
   providers: [],
   callbacks: {
     // Dipanggil proxy.ts pada setiap request halaman.
-    authorized({ auth, request: { nextUrl } }) {
+    async authorized({ auth, request }) {
+      const arcjetResponse = await protectRequest(request);
+      if (arcjetResponse) return arcjetResponse;
+
+      const { nextUrl } = request;
       const user = auth?.user;
       const { pathname } = nextUrl;
+
+      // API routes are protected by Arcjet here and perform their own session/role checks.
+      if (pathname.startsWith('/api/')) return true;
 
       // Belum login: hanya /login yang boleh. `false` => redirect ke /login?callbackUrl=...
       if (!user) return pathname === '/login';
