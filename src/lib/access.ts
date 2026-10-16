@@ -47,14 +47,14 @@ export function filterNavByRole<T extends { url: string }>(
  * jadi tidak mungkin diarahkan ke situs luar (open redirect).
  */
 export function safeRedirect(value: string | null | undefined): string {
-  if (!value) return '/';
+  if (!value) return ROLE_HOME.admin;
   let path = value;
   if (/^https?:\/\//i.test(value)) {
     try {
       const url = new URL(value);
       path = url.pathname + url.search;
     } catch {
-      return '/';
+      return ROLE_HOME.admin;
     }
   }
   if (
@@ -63,6 +63,7 @@ export function safeRedirect(value: string | null | undefined): string {
     path.startsWith('/\\') ||
     path.startsWith('/login')
   )
-    return '/';
+    return ROLE_HOME.admin;
+  if (path === '/') return ROLE_HOME.admin;
   return path;
 }

@@ -20,7 +20,7 @@ export default async function LoginPage({
         <div className='flex flex-1 items-center justify-center'>
           <div className='w-full max-w-xs'>
             <LoginForm
-              callbackUrl={safeRedirect(callbackUrl)}
+              callbackUrl={callbackUrl ? safeRedirect(callbackUrl) : undefined}
               notice={
                 changed
                   ? 'Password berhasil diubah. Silakan masuk dengan password baru.'

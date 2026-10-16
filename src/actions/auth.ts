@@ -3,7 +3,8 @@
 import { AuthError } from 'next-auth';
 
 import { signIn, signOut } from '@/auth';
-import { safeRedirect } from '@/lib/access';
+import { ROLE_HOME, safeRedirect } from '@/lib/access';
+import { prisma } from '@/lib/prisma';
 
 /** Dipakai oleh useActionState di form login. Mengembalikan pesan error, atau redirect saat sukses. */
 export async function login(
@@ -12,7 +13,18 @@ export async function login(
 ): Promise<string | undefined> {
   const username = String(formData.get('username') ?? '').trim();
   const password = String(formData.get('password') ?? '');
-  const callbackUrl = safeRedirect(String(formData.get('callbackUrl') ?? ''));
+  const requestedCallback = String(formData.get('callbackUrl') ?? '').trim();
+  const user = requestedCallback
+    ? null
+    : await prisma.user.findUnique({
+        where: { username },
+        select: { role: true },
+      });
+  const callbackUrl = requestedCallback
+    ? safeRedirect(requestedCallback)
+    : user
+      ? ROLE_HOME[user.role]
+      : ROLE_HOME.admin;
 
   try {
     await signIn('credentials', { username, password, redirectTo: callbackUrl });

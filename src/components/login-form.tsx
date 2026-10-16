@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 export function LoginForm({
   className,
-  callbackUrl = '/dashboard',
+  callbackUrl,
   devHint,
   notice,
   ...props
@@ -30,7 +30,7 @@ export function LoginForm({
             Nusantara.{' '}
           </p>{' '}
         </div>{' '}
-        <input type='hidden' name='callbackUrl' value={callbackUrl} />{' '}
+        <input type='hidden' name='callbackUrl' value={callbackUrl ?? ''} />{' '}
         <Field>
           {' '}
           <FieldLabel htmlFor='username'>Username</FieldLabel>{' '}

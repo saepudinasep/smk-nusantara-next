@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { BellIcon, CircleUserRoundIcon, EllipsisVerticalIcon, LogOutIcon } from 'lucide-react';
@@ -44,13 +45,22 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
+  const sessionRefreshStarted = useRef(false);
   const me = session?.user;
 
   const name = me?.name ?? user.name;
   const avatar = me?.image ?? user.avatar;
   // guru/siswa tidak punya email, jadi tampilkan username dan peran
-  const secondary = me ? (me.email ?? `${me.username} · ${roleLabel[me.role]}`) : user.email;
+  const secondary = me
+    ? me.email || `${me.username} · ${roleLabel[me.role]}`
+    : user.email;
+
+  useEffect(() => {
+    if (sessionRefreshStarted.current) return;
+    sessionRefreshStarted.current = true;
+    void update();
+  }, [update]);
 
   return (
     <SidebarMenu>

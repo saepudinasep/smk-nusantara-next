@@ -1,6 +1,11 @@
 import { redirect } from 'next/navigation';
 
-// Proxy sudah mengalihkan '/' (ke /login atau halaman awal sesuai peran); ini hanya cadangan.
-export default function Home() {
-  redirect('/login');
+import { auth } from '@/auth';
+import { ROLE_HOME } from '@/lib/access';
+
+export default async function Home() {
+  const session = await auth();
+  if (!session?.user) redirect('/login');
+  if (session.user.mustChangePassword) redirect('/account');
+  redirect(ROLE_HOME[session.user.role]);
 }
