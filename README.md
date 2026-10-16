@@ -1,28 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portal Akademik SMK Nusantara
 
-## Getting Started
+Aplikasi portal akademik untuk mengelola data siswa dan guru, kelas, jadwal pelajaran, nilai, serta notifikasi. Hak akses dibagi menjadi tiga peran:
 
-First, run the development server:
+- **Admin**: dashboard, pengelolaan siswa/guru/kelas/jadwal, finalisasi jadwal, dan laporan nilai.
+- **Guru**: melihat jadwal mengajar dan menginput nilai.
+- **Siswa**: melihat jadwal kelas dan nilai.
+- **Semua peran**: mengelola akun dan melihat notifikasi.
+
+## Teknologi
+
+- Next.js 16 dengan App Router, React 19, dan TypeScript
+- MongoDB dengan Prisma ORM
+- Auth.js (NextAuth) untuk autentikasi berbasis username dan password
+- Tailwind CSS, shadcn/ui, dan Recharts
+- Arcjet untuk proteksi bot, Pusher untuk notifikasi real-time, Web Push untuk notifikasi browser, dan Cloudinary untuk foto profil
+
+## Persiapan
+
+Pastikan sudah tersedia:
+
+- Node.js yang kompatibel dengan Next.js 16
+- npm
+- MongoDB yang mendukung **replica set** (MongoDB Atlas sudah mendukungnya)
+
+Pasang dependensi:
+
+```bash
+npm install
+```
+
+Buat file `.env` di root project. Contoh konfigurasi minimum untuk pengembangan:
+
+```dotenv
+DATABASE_URL="mongodb+srv://<username>:<password>@<cluster>/<database>?retryWrites=true&w=majority"
+AUTH_SECRET="<secret-random>"
+ARCJET_KEY="<arcjet-key>"
+```
+
+Gunakan connection string MongoDB Anda sendiri dan jangan commit file `.env`. Buat `AUTH_SECRET` acak, misalnya dengan `npx auth secret`. `ARCJET_KEY` dapat dibuat dari dashboard [Arcjet](https://console.arcjet.com). Arcjet wajib dikonfigurasi saat production: request akan menerima `503` jika key belum tersedia. Di development, aplikasi tetap berjalan dengan proteksi Arcjet dinonaktifkan.
+
+Sinkronkan skema Prisma ke database:
+
+```bash
+npx prisma db push
+```
+
+Perintah ini perlu dijalankan setelah perubahan skema Prisma. Relasi yang membutuhkan transaksi mengharuskan MongoDB berjalan sebagai replica set.
+
+Jalankan server development:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Data awal untuk development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Seed mengisi database dengan data demo dan **menghapus data lama** pada koleksi yang dikelola seed. Jangan jalankan pada database yang berisi data penting atau database production.
 
-## Real-time notifications
+1. Pastikan `DATABASE_URL` mengarah ke database development.
+2. Tambahkan izin eksplisit ini ke `.env` lokal:
 
-Notifications are stored in MongoDB and delivered to the signed-in user's private Pusher channel. Add the following values from your Pusher Channels app to `.env`:
+   ```dotenv
+   SEED_ALLOW_WIPE="true"
+   ```
+
+3. Jalankan:
+
+   ```bash
+   npm run db:seed
+   ```
+
+Seed ditolak jika `NODE_ENV=production` atau `SEED_ALLOW_WIPE` bukan `true`. Akun demo bawaan:
+
+| Peran | Username | Password default |
+|---|---|---|
+| Admin | `admin` | `admin1234` |
+| Guru | `T0001` | `smk12345` |
+| Siswa | `20160001` | `smk12345` |
+
+Password admin seed dapat diubah dengan `SEED_ADMIN_PASSWORD`, sedangkan password awal guru dan siswa dapat diubah dengan `SEED_DEFAULT_PASSWORD`. Kredensial default hanya untuk demo lokal; ganti sebelum penggunaan nyata.
+Untuk password awal akun guru/siswa yang dibuat lewat aplikasi (bukan lewat seed), gunakan `DEFAULT_USER_PASSWORD`.
+
+Untuk membuat admin tanpa menghapus data, gunakan:
+
+```bash
+npm run db:create-admin
+```
+
+Untuk development, isi `ADMIN_USERNAME`, `ADMIN_PASSWORD`, dan opsional `ADMIN_EMAIL` di `.env` sebelum menjalankan perintah tersebut. Skrip menolak username yang sudah digunakan dan tidak mengubah data lain.
+
+Password wajib memenuhi kebijakan aplikasi: minimal 8 karakter serta mengandung huruf besar, huruf kecil, angka, dan simbol. Untuk penggunaan di production, atur `ADMIN_USERNAME` dan `ADMIN_PASSWORD` sebagai environment variable pada environment tersebut, lalu jalankan `npx tsx prisma/create-admin.ts`. Jangan masukkan password production ke file yang di-commit.
+
+## Layanan opsional
+
+### Foto profil melalui Cloudinary
+
+Fitur unggah foto profil memerlukan kredensial Cloudinary. Tanpa konfigurasi ini, fitur foto tidak tersedia.
+
+```dotenv
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+`NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` juga dapat digunakan sebagai alternatif nama cloud. Jangan pernah mengekspos `CLOUDINARY_API_SECRET` ke browser.
+
+### Notifikasi real-time
+
+Notifikasi aplikasi disimpan di MongoDB. Untuk mengirim pembaruan real-time melalui Pusher, isi kredensial Channels berikut:
 
 ```dotenv
 PUSHER_APP_ID=
@@ -31,9 +118,9 @@ PUSHER_SECRET=
 PUSHER_CLUSTER=
 ```
 
-After adding the notification model, synchronize the Prisma schema with MongoDB using `npx prisma db push`. Real-time events are sent when a schedule is finalized, a student is assigned to or removed from a class, scores are changed, or an account profile/password is changed.
+### Notifikasi push browser
 
-Browser push notifications also require VAPID keys. Generate a key pair with `npx web-push generate-vapid-keys`, then add the generated public/private keys and a contact URI to `.env`:
+Buat pasangan VAPID dengan `npx web-push generate-vapid-keys`, lalu tambahkan:
 
 ```dotenv
 VAPID_PUBLIC_KEY=
@@ -41,29 +128,22 @@ VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:admin@example.com
 ```
 
-Keep `VAPID_PRIVATE_KEY` secret. Users can enable/disable notifications from the Notifications page; their browser must grant permission. Push notifications require HTTPS (localhost is supported for development).
+Jaga `VAPID_PRIVATE_KEY` tetap rahasia. Pengguna dapat mengaktifkan notifikasi dari halaman Notifications setelah memberi izin browser. Push browser memerlukan HTTPS; `localhost` didukung untuk development.
 
-## Arcjet bot protection
+Pusher dan VAPID dapat dikonfigurasi secara terpisah. Tanpa Pusher, notifikasi masih tersimpan di database tetapi tidak dikirim secara real-time. Tanpa VAPID, notifikasi push browser tidak dikirim.
 
-Arcjet protects application pages and API routes with Shield and bot detection. Create a site at [Arcjet](https://console.arcjet.com), then add its key to `.env`:
+## Perintah yang tersedia
 
-```dotenv
-ARCJET_KEY=
-```
+| Perintah | Kegunaan |
+|---|---|
+| `npm run dev` | Menjalankan server development |
+| `npm run build` | Membuat build production |
+| `npm run start` | Menjalankan build production |
+| `npm run lint` | Menjalankan ESLint |
+| `npx prisma db push` | Menyinkronkan skema Prisma ke MongoDB |
+| `npm run db:seed` | Menghapus data terkait lalu mengisi data demo (development saja) |
+| `npm run db:create-admin` | Membuat admin tanpa menghapus data |
 
-Detected bots are denied on all matched routes. Static assets and Next.js internal assets are excluded from the proxy matcher. For safety, production requests return `503` until `ARCJET_KEY` is configured; development logs a warning and continues without Arcjet protection.
+## Catatan deployment
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Atur `DATABASE_URL`, `AUTH_SECRET`, dan `ARCJET_KEY` di environment deployment. Tambahkan kredensial Cloudinary, Pusher, dan/atau VAPID hanya jika fitur terkait digunakan. Jangan jalankan seed di production; buat akun admin dengan skrip `prisma/create-admin.ts`.
