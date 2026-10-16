@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import type { ActionResult } from '@/actions/result';
 import { Prisma } from '@/generated/prisma/client';
 import { requireRole } from '@/lib/auth-guard';
+import { createNotifications } from '@/lib/notifications';
 import { prisma } from '@/lib/prisma';
 import { classMembersSchema } from '@/lib/validations';
 
@@ -27,6 +28,7 @@ export async function assignStudents(
   const parsed = classMembersSchema.safeParse({ className, studentIds });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const ids = [...new Set(parsed.data.studentIds)];
+  let recipientIds: string[] = [];
 
   try {
     const cls = await prisma.class.findUnique({
@@ -37,7 +39,7 @@ export async function assignStudents(
 
     const students = await prisma.student.findMany({
       where: { studentCode: { in: ids } },
-      select: { id: true, class: { select: { id: true } } },
+      select: { id: true, userId: true, class: { select: { id: true } } },
     });
     if (students.length !== ids.length) return { ok: false, error: STALE };
 
@@ -48,6 +50,7 @@ export async function assignStudents(
         error: `${taken} of the selected students already ${taken === 1 ? 'has' : 'have'} a class. Refresh the page and try again.`,
       };
     }
+    recipientIds = students.map((student) => student.userId);
 
     await prisma.detailClass.createMany({
       data: students.map((s) => ({ classId: cls.id, studentId: s.id })),
@@ -60,6 +63,14 @@ export async function assignStudents(
     return GENERIC;
   }
 
+  await createNotifications(
+    recipientIds.map((userId) => ({
+      userId,
+      type: 'class',
+      title: 'Added to a class',
+      message: `You have been assigned to class ${parsed.data.className}.`,
+    })),
+  );
   refresh();
   return { ok: true };
 }
@@ -73,6 +84,7 @@ export async function removeStudents(
   const parsed = classMembersSchema.safeParse({ className, studentIds });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const ids = [...new Set(parsed.data.studentIds)];
+  let recipientIds: string[] = [];
 
   try {
     const cls = await prisma.class.findUnique({
@@ -83,11 +95,12 @@ export async function removeStudents(
 
     const students = await prisma.student.findMany({
       where: { studentCode: { in: ids } },
-      select: { id: true, class: { select: { classId: true } } },
+      select: { id: true, userId: true, class: { select: { classId: true } } },
     });
     const members = students.filter((s) => s.class?.classId === cls.id);
     if (students.length !== ids.length || members.length !== ids.length)
       return { ok: false, error: STALE };
+    recipientIds = members.map((student) => student.userId);
 
     const withScores = await prisma.detailScore.count({
       where: {
@@ -111,6 +124,14 @@ export async function removeStudents(
     return GENERIC;
   }
 
+  await createNotifications(
+    recipientIds.map((userId) => ({
+      userId,
+      type: 'class',
+      title: 'Removed from a class',
+      message: `You have been removed from class ${parsed.data.className}.`,
+    })),
+  );
   refresh();
   return { ok: true };
 }

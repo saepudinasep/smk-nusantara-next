@@ -1,34 +1,157 @@
-export type NotificationType = 'schedule' | 'score' | 'class' | 'account' | 'system';
+import 'server-only';
 
-export type AppNotification = {
-  id: number;
+import Pusher from 'pusher';
+import webpush from 'web-push';
+
+import type { NotificationType } from '@/lib/notification-types';
+import { prisma } from '@/lib/prisma';
+
+export type NewNotification = {
   type: NotificationType;
   title: string;
   message: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:mm
-  read: boolean;
+  userId: string;
 };
 
-// Data dummy. ERD tidak punya tabel notifikasi, jadi nanti perlu tabel baru
-// (mis. Notification: id, userId, type, title, message, createdAt, readAt).
-export const initialNotifications: AppNotification[] = [
-  { id: 1, type: 'schedule', title: 'Schedule finalized', message: 'The schedule for class XA has been finalized.', date: '2026-10-06', time: '09:15', read: false },
-  { id: 2, type: 'score', title: 'Scores submitted', message: 'Scores for Informatika (XIA) were entered by Siti Rahmawati.', date: '2026-10-06', time: '08:40', read: false },
-  { id: 3, type: 'class', title: 'Student assigned to class', message: 'Salsa Amelia was added to class XB.', date: '2026-10-05', time: '15:20', read: false },
-  { id: 4, type: 'account', title: 'Password changed', message: 'Your password was changed successfully.', date: '2026-10-05', time: '10:02', read: true },
-  { id: 5, type: 'schedule', title: 'Schedule updated', message: 'Matematika on Tuesday for XIIA moved to shift 3.', date: '2026-10-04', time: '13:45', read: false },
-  { id: 6, type: 'system', title: 'Welcome to SMK Nusantara', message: 'Your account has been created. Complete your profile in Account.', date: '2026-10-01', time: '07:00', read: true },
-  { id: 7, type: 'score', title: 'Report score available', message: 'The average score report for Agama is ready to view.', date: '2026-09-30', time: '16:10', read: true },
-  { id: 8, type: 'class', title: 'Class roster updated', message: '4 students are still waiting for a class.', date: '2026-09-29', time: '11:30', read: true },
-  { id: 9, type: 'schedule', title: 'New teaching session', message: 'You have a new session: Agama, XIB, Thursday 07:45 - 08:30.', date: '2026-09-28', time: '09:00', read: true },
-  { id: 10, type: 'system', title: 'Maintenance notice', message: 'The portal will be unavailable on Sunday 02:00 - 03:00.', date: '2026-09-27', time: '18:00', read: true },
-];
+const pusherConfig = {
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+};
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const pusher =
+  pusherConfig.appId && pusherConfig.key && pusherConfig.secret && pusherConfig.cluster
+    ? new Pusher({
+        appId: pusherConfig.appId,
+        key: pusherConfig.key,
+        secret: pusherConfig.secret,
+        cluster: pusherConfig.cluster,
+      })
+    : null;
 
-/** Format manual (tanpa Intl/zona waktu) supaya hasil server dan client selalu sama. */
-export function formatDateTime(date: string, time: string) {
-  const [y, m, d] = date.split('-').map(Number);
-  return `${d} ${months[m - 1]} ${y} · ${time}`;
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+const vapidSubject = process.env.VAPID_SUBJECT;
+const webPushReady = Boolean(vapidPublicKey && vapidPrivateKey && vapidSubject);
+
+if (vapidPublicKey && vapidPrivateKey && vapidSubject) {
+  webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+}
+
+export function getWebPushPublicKey() {
+  if (!vapidPublicKey || !vapidPrivateKey || !vapidSubject) return null;
+  return vapidPublicKey;
+}
+
+export function getPusherClientConfig() {
+  if (!pusher || !pusherConfig.key || !pusherConfig.cluster) return null;
+  return { key: pusherConfig.key, cluster: pusherConfig.cluster };
+}
+
+export function authorizeNotificationChannel(socketId: string, channelName: string) {
+  if (!pusher) throw new Error('Pusher is not configured.');
+  return pusher.authorizeChannel(socketId, channelName);
+}
+
+export async function createNotifications(notifications: NewNotification[]) {
+  let created: {
+    id: string;
+    userId: string;
+    type: NotificationType;
+    title: string;
+    message: string;
+    createdAt: Date;
+  }[];
+  try {
+    created = await Promise.all(
+      notifications.map(({ userId, ...data }) =>
+        prisma.notification.create({
+          data: { ...data, userId },
+          select: {
+            id: true,
+            userId: true,
+            type: true,
+            title: true,
+            message: true,
+            createdAt: true,
+          },
+        }),
+      ),
+    );
+  } catch (error) {
+    console.error('Failed to save notifications:', error);
+    return;
+  }
+
+  if (!pusher) {
+    if (created.length > 0) {
+      console.error('Pusher is not configured; notifications were saved but not broadcast.');
+    }
+  } else {
+    const results = await Promise.allSettled(
+      created.map(({ userId, ...notification }) =>
+        pusher.trigger(`private-notifications-${userId}`, 'notification:new', {
+          ...notification,
+          createdAt: notification.createdAt.toISOString(),
+          read: false,
+        }),
+      ),
+    );
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.error('Failed to broadcast a notification through Pusher:', result.reason);
+      }
+    }
+  }
+
+  if (!webPushReady) return;
+  let subscriptions: { endpoint: string; p256dh: string; auth: string; userId: string }[];
+  try {
+    subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: notifications.map(({ userId }) => userId) } },
+      select: { endpoint: true, p256dh: true, auth: true, userId: true },
+    });
+  } catch (error) {
+    console.error('Failed to load browser push subscriptions:', error);
+    return;
+  }
+  const pushResults = await Promise.allSettled(
+    subscriptions.flatMap((subscription) =>
+      notifications
+        .filter((notification) => notification.userId === subscription.userId)
+        .map(async (notification) => {
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint: subscription.endpoint,
+                keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+              },
+              JSON.stringify({
+                title: notification.title,
+                body: notification.message,
+                url: '/notifications',
+              }),
+            );
+          } catch (error) {
+            const statusCode =
+              typeof error === 'object' && error !== null && 'statusCode' in error
+                ? error.statusCode
+                : undefined;
+            if (statusCode === 404 || statusCode === 410) {
+              await prisma.pushSubscription.deleteMany({
+                where: { endpoint: subscription.endpoint },
+              });
+              return;
+            }
+            throw error;
+          }
+        }),
+    ),
+  );
+  for (const result of pushResults) {
+    if (result.status === 'rejected') {
+      console.error('Failed to send a browser push notification:', result.reason);
+    }
+  }
 }

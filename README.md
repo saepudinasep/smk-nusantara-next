@@ -20,6 +20,29 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Real-time notifications
+
+Notifications are stored in MongoDB and delivered to the signed-in user's private Pusher channel. Add the following values from your Pusher Channels app to `.env`:
+
+```dotenv
+PUSHER_APP_ID=
+PUSHER_KEY=
+PUSHER_SECRET=
+PUSHER_CLUSTER=
+```
+
+After adding the notification model, synchronize the Prisma schema with MongoDB using `npx prisma db push`. Real-time events are sent when a schedule is finalized, a student is assigned to or removed from a class, scores are changed, or an account profile/password is changed.
+
+Browser push notifications also require VAPID keys. Generate a key pair with `npx web-push generate-vapid-keys`, then add the generated public/private keys and a contact URI to `.env`:
+
+```dotenv
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:admin@example.com
+```
+
+Keep `VAPID_PRIVATE_KEY` secret. Users can enable/disable notifications from the Notifications page; their browser must grant permission. Push notifications require HTTPS (localhost is supported for development).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

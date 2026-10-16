@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import type { ActionResult } from '@/actions/result';
 import { Prisma } from '@/generated/prisma/client';
 import { requireRole } from '@/lib/auth-guard';
+import { createNotifications } from '@/lib/notifications';
 import { prisma } from '@/lib/prisma';
 import { sessionCreateSchema, sessionIdSchema, sessionUpdateSchema } from '@/lib/validations';
 
@@ -207,6 +208,7 @@ export async function deleteSession(id: string): Promise<ActionResult> {
 /** Finalisasi: hanya bila setiap mata pelajaran tingkat kelas itu punya minimal satu sesi. Tidak bisa dibatalkan. */
 export async function finalizeSchedule(className: string): Promise<ActionResult> {
   await requireRole('admin');
+  let recipientIds: string[] = [];
   if (typeof className !== 'string' || !className.trim() || className.length > 5) {
     return { ok: false, error: 'Class not found.' };
   }
@@ -241,6 +243,23 @@ export async function finalizeSchedule(className: string): Promise<ActionResult>
       };
     }
 
+    const [students, teachers] = await Promise.all([
+      prisma.detailClass.findMany({
+        where: { classId: cls.id },
+        select: { student: { select: { userId: true } } },
+      }),
+      prisma.detailSchedule.findMany({
+        where: { scheduleId: cls.schedule.id },
+        select: { teacher: { select: { userId: true } } },
+      }),
+    ]);
+    recipientIds = [
+      ...new Set([
+        ...students.map(({ student }) => student.userId),
+        ...teachers.map(({ teacher }) => teacher.userId),
+      ]),
+    ];
+
     // updateMany + syarat finalized:false mencegah dua admin memfinalisasi bersamaan
     const result = await prisma.headerSchedule.updateMany({
       where: { id: cls.schedule.id, finalized: false },
@@ -252,6 +271,14 @@ export async function finalizeSchedule(className: string): Promise<ActionResult>
     return GENERIC;
   }
 
+  await createNotifications(
+    recipientIds.map((userId) => ({
+      userId,
+      type: 'schedule',
+      title: 'Schedule finalized',
+      message: `The schedule for class ${className} has been finalized.`,
+    })),
+  );
   refresh();
   return { ok: true };
 }

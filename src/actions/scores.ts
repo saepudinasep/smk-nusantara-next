@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import type { ActionResult } from '@/actions/result';
 import { requireRole } from '@/lib/auth-guard';
+import { createNotifications } from '@/lib/notifications';
 import { prisma } from '@/lib/prisma';
 import { ONLY_FINALIZED } from '@/lib/schedule-visibility';
 import { saveScoreSchema } from '@/lib/validations';
@@ -19,6 +20,7 @@ export async function saveScore(input: unknown): Promise<ActionResult> {
   const parsed = saveScoreSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const { className, subjectId, studentId, assignment, midExam, finalExam } = parsed.data;
+  let recipientUserId = '';
 
   try {
     const teacher = await prisma.teacher.findUnique({
@@ -41,11 +43,12 @@ export async function saveScore(input: unknown): Promise<ActionResult> {
 
     const student = await prisma.student.findUnique({
       where: { studentCode: studentId },
-      select: { id: true, class: { select: { classId: true } } },
+      select: { id: true, userId: true, class: { select: { classId: true } } },
     });
     if (!student || student.class?.classId !== detail.schedule.classId) {
       return { ok: false, error: 'This student is not in the selected class.' };
     }
+    recipientUserId = student.userId;
 
     if (assignment === null && midExam === null && finalExam === null) {
       await prisma.detailScore.deleteMany({
@@ -63,6 +66,16 @@ export async function saveScore(input: unknown): Promise<ActionResult> {
     return { ok: false, error: 'Something went wrong. Please try again.' };
   }
 
+  if (recipientUserId) {
+    await createNotifications([
+      {
+        userId: recipientUserId,
+        type: 'score',
+        title: 'Score updated',
+        message: `Your scores for ${subjectId} in class ${className} have been updated.`,
+      },
+    ]);
+  }
   revalidatePath('/input-score');
   revalidatePath('/view-score');
   revalidatePath('/view-report-score');

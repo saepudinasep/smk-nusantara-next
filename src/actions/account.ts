@@ -14,6 +14,7 @@ import {
   photoPublicId,
   signUpload,
 } from '@/lib/cloudinary';
+import { createNotifications } from '@/lib/notifications';
 import { hashPassword } from '@/lib/password';
 import { prisma } from '@/lib/prisma';
 import {
@@ -40,6 +41,14 @@ export async function changePassword(input: unknown): Promise<ActionResult> {
     where: { id: user.id },
     data: { password: await hashPassword(newPassword), mustChangePassword: false },
   });
+  await createNotifications([
+    {
+      userId: user.id,
+      type: 'account',
+      title: 'Password changed',
+      message: 'Your account password was changed successfully.',
+    },
+  ]);
   return { ok: true };
 }
 
@@ -104,6 +113,14 @@ export async function saveProfile(input: unknown): Promise<SaveProfileResult> {
               select: { name: true, photo: true },
             });
       revalidatePath('/account');
+      await createNotifications([
+        {
+          userId: user.id,
+          type: 'account',
+          title: 'Profile updated',
+          message: 'Your account profile was updated successfully.',
+        },
+      ]);
       return { ok: true, name: row.name, photo: row.photo };
     }
 
@@ -121,6 +138,14 @@ export async function saveProfile(input: unknown): Promise<SaveProfileResult> {
       select: { photo: true },
     });
     revalidatePath('/account');
+    await createNotifications([
+      {
+        userId: user.id,
+        type: 'account',
+        title: 'Profile updated',
+        message: 'Your account profile was updated successfully.',
+      },
+    ]);
     return { ok: true, name: 'Administrator', photo: row.photo };
   } catch (e) {
     console.error(e);
@@ -152,6 +177,14 @@ export async function removePhoto(): Promise<ActionResult> {
     console.error(e);
     return { ok: false, error: 'Could not remove the photo. Please try again.' };
   }
+  await createNotifications([
+    {
+      userId: user.id,
+      type: 'account',
+      title: 'Profile photo removed',
+      message: 'Your account profile photo was removed.',
+    },
+  ]);
   revalidatePath('/account');
   return { ok: true };
 }
